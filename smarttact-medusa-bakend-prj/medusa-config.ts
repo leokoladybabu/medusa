@@ -69,7 +69,7 @@ module.exports = defineConfig({
     vite: () => {
       return {
         server: {
-          allowedHosts: ["smarttract.up.railway.app"], // replace ".medusa-server-testing.com" with ".yourdomain.com"
+          allowedHosts: ["smarttractbk.up.railway.app"], // replace ".medusa-server-testing.com" with ".yourdomain.com"
         },
       };
     },

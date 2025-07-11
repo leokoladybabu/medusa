@@ -2,7 +2,27 @@ import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
-const dynamicModules = {};
+const dynamicModules = {
+  taxcode:{
+    resolve: "./src/modules/taxcode",
+  },
+  taxjar: {
+     resolve: "@medusajs/medusa/tax",
+      dependencies: ["remoteQuery"],
+      options: {
+        providers: [
+          {
+            resolve: "./src/modules/taxjar",
+            id: "tax-jar-provider",
+            options: {
+              apiKey: process.env.TAXJAR_API_KEY,
+              defaultTaxcode: process.env.TAXJAR_DEFAULT_TAXCODE,
+            },
+          },
+        ],
+      },
+  }
+};
 
 const stripeApiKey = process.env.STRIPE_API_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

@@ -21,7 +21,23 @@ const dynamicModules = {
           },
         ],
       },
-  }
+  },
+   notification:  {
+      resolve: "@medusajs/medusa/notification",
+      options: {
+        providers: [
+          {
+            resolve: "./src/modules/resend",
+            id: "resend",
+            options: {
+              channels: ["email"],
+              api_key: process.env.RESEND_API_KEY,
+              from: process.env.RESEND_FROM_EMAIL,
+            },
+          },
+        ],
+      },
+    },
 };
 
 const stripeApiKey = process.env.STRIPE_API_KEY;
@@ -51,26 +67,29 @@ if (isStripeConfigured) {
 
 const modules = {
 
-  ...(process.env.DO_SPACE_URL && {[Modules.FILE]: {
-    resolve: '@medusajs/medusa/file',
-    options: {
-      providers: [
-        {
-          resolve: '@medusajs/file-s3',
-          id: 's3',
-          options: {
-            file_url: process.env.DO_SPACE_URL,
-            access_key_id: process.env.DO_SPACE_ACCESS_KEY,
-            secret_access_key: process.env.DO_SPACE_SECRET_KEY,
-            region: process.env.DO_SPACE_REGION,
-            bucket: process.env.DO_SPACE_BUCKET,
-            endpoint: process.env.DO_SPACE_ENDPOINT,
+    ...(process.env.DO_SPACE_URL &&
+  {
+    [Modules.FILE]: {
+      resolve: '@medusajs/medusa/file',
+      options: {
+        providers: [
+          {
+            resolve: '@medusajs/file-s3',
+            id: 's3',
+            options: {
+              file_url: process.env.DO_SPACE_URL,
+              access_key_id: process.env.DO_SPACE_ACCESS_KEY,
+              secret_access_key: process.env.DO_SPACE_SECRET_KEY,
+              region: process.env.DO_SPACE_REGION,
+              bucket: process.env.DO_SPACE_BUCKET,
+              endpoint: process.env.DO_SPACE_ENDPOINT,
+            },
           },
-        },
-      ],
+        ],
+      },
     },
-  },
   } || {}),
+
 
   [Modules.CACHE]: {
     resolve: '@medusajs/medusa/cache-redis',

@@ -72,14 +72,14 @@ export default class TaxJarProvider implements ITaxProvider {
     );
 
     const itemTaxLines: TaxTypes.ItemTaxLineDTO[] =
-      tax.breakdown.line_items.map((item) => {
+     ( (tax.breakdown ?? []) as any).line_items.map((item) => {
         const itemVal = items.find((i) => i.id === item.id);
         return {
           line_item_id: item.id,
           rate: item.combined_tax_rate * 100, // Fraction to percent conversion
-          code: itemVal.product_tax_code,
+          code: itemVal?.product_tax_code,
           provider_id: this.getIdentifier(),
-          name: `TaxJar-${itemVal.product_tax_code}`,
+          name: `TaxJar-${itemVal?.product_tax_code}`,
         };
       });
 

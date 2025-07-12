@@ -51,7 +51,7 @@ if (isStripeConfigured) {
 
 const modules = {
 
-  [Modules.FILE]: {
+  ...(process.env.DO_SPACE_URL && {[Modules.FILE]: {
     resolve: '@medusajs/medusa/file',
     options: {
       providers: [
@@ -70,6 +70,7 @@ const modules = {
       ],
     },
   },
+  } || {}),
 
   [Modules.CACHE]: {
     resolve: '@medusajs/medusa/cache-redis',

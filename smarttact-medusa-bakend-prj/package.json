@@ -13,7 +13,7 @@
     "medusa"
   ],
   "scripts": {
-    "dev:email": "email dev --dir ./src/resend/emails",
+    "dev:email": "email dev --dir ./src/modules/resend/emails",
     "buildadmin": "medusa build && ln -s .medusa/server/public/ public",
     "startadmin": "NODE_ENV=production medusa start -H 0.0.0.0",
     "buildworker": "medusa build",
@@ -42,7 +42,7 @@
   "devDependencies": {
     "@medusajs/test-utils": "2.6.1",
     "@mikro-orm/cli": "6.4.3",
-    "@react-email/preview-server": "4.1.1",
+    "@react-email/preview-server": "^4.1.3",
     "@swc/core": "1.5.7",
     "@swc/jest": "^0.2.36",
     "@types/jest": "^29.5.13",

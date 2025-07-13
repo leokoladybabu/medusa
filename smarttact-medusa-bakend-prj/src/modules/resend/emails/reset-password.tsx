@@ -27,7 +27,7 @@ function ResetPasswordEmail({ resetLink, customerName }: ResetPasswordEmailProps
         <Body className="bg-white my-10 mx-auto w-full max-w-xl">
           {/* Header */}
           <Section className="bg-[#27272a] text-white px-6 py-4">
-            <Heading className="text-white text-xl">Medusa</Heading>
+            <Heading className="text-white text-xl">Smarttract</Heading>
           </Section>
 
           {/* Reset Password Intro */}
@@ -56,10 +56,10 @@ function ResetPasswordEmail({ resetLink, customerName }: ResetPasswordEmailProps
           {/* Footer */}
           <Section className="bg-gray-50 p-6 mt-10">
             <Text className="text-center text-gray-500 text-sm">
-              Need help? Contact us at support@medusajs.com
+              Need help? Contact us at support@smart-tract.com
             </Text>
             <Text className="text-center text-gray-400 text-xs mt-4">
-              © {new Date().getFullYear()} Medusajs, Inc. All rights reserved.
+              © {new Date().getFullYear()} Smarttract LLC. All rights reserved.
             </Text>
           </Section>
         </Body>

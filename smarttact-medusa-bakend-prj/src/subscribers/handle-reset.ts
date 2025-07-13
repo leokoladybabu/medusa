@@ -21,7 +21,7 @@ export default async function resetPasswordTokenHandler({
 
   if (actor_type === "customer") {
     const customers = await customerService.listCustomers({email})
-    customerName = [customers[0].first_name, customers[0].last_name].filter(Boolean).join(" ")
+    customerName = [customers[0]?.first_name, customers[0]?.last_name].filter(Boolean).join(" ")
   }
 
   const urlPrefix = actor_type === "customer" ? 

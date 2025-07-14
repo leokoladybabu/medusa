@@ -13,7 +13,7 @@
     "medusa"
   ],
   "scripts": {
-    "dev:email": "email dev --dir ./src/modules/resend/emails",
+    "dev:email": "email dev --dir ./src/resend/emails",
     "buildadmin": "medusa build && ln -s .medusa/server/public/ public",
     "startadmin": "NODE_ENV=production medusa start -H 0.0.0.0",
     "buildworker": "medusa build",

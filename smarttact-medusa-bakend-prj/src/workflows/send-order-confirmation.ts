@@ -12,7 +12,6 @@ type WorkflowInput = {
 export const sendOrderConfirmationWorkflow = createWorkflow(
   "send-order-confirmation",
   ({ id }: WorkflowInput) => {
-    // @ts-expect-error – expects an error and silences it
     const { data: orders } = useQueryGraphStep({
       entity: "order",
       fields: [
@@ -38,10 +37,10 @@ export const sendOrderConfirmationWorkflow = createWorkflow(
       filters: {
         id,
       },
-    })
+    } as any)
     
     const notification = sendNotificationStep([{
-      to: orders[0].email ?? '',
+      to: orders[0].email,
       channel: "email",
       template: "order-placed",
       data: {

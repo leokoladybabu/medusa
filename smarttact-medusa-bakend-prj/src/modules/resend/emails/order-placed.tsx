@@ -51,7 +51,7 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
     <Tailwind>
       <Html className="font-sans bg-gray-100">
         <Head />
-        <Preview>Thank you for your order from Medusa</Preview>
+        <Preview>Thank you for your order from Smartract</Preview>
         <Body className="bg-white my-10 mx-auto w-full max-w-2xl">
           {/* Header */}
           <Section className="bg-[#27272a] text-white px-6 py-4">
@@ -175,13 +175,13 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
           {/* Footer */}
           <Section className="bg-gray-50 p-6 mt-10">
             <Text className="text-center text-gray-500 text-sm">
-              If you have any questions, reply to this email or contact our support team at support@medusajs.com.
+              If you have any questions, reply to this email or contact our support team at support@smart-tract.com.
             </Text>
             <Text className="text-center text-gray-500 text-sm">
               Order Token: {order.id}
             </Text>
             <Text className="text-center text-gray-400 text-xs mt-4">
-              © {new Date().getFullYear()} Medusajs, Inc. All rights reserved.
+              © {new Date().getFullYear()} Smarttract, Inc. All rights reserved.
             </Text>
           </Section>
         </Body>

@@ -42,7 +42,7 @@ export default class TaxJarProvider implements ITaxProvider {
     shippingLines: TaxTypes.ShippingTaxCalculationLine[],
     context: TaxTypes.TaxCalculationContext
   ): Promise<(TaxTypes.ItemTaxLineDTO | TaxTypes.ShippingTaxLineDTO)[]> {
-    if (itemLines.length === 0) {
+    if (itemLines.length === 0 || context.address.postal_code === null) {
       return [];
     }
 

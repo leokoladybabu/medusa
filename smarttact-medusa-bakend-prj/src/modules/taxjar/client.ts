@@ -36,6 +36,7 @@ export default class TaxJarClient {
       return response.data;
     } catch (e: any) {
       const error = e as AxiosError;
+      console.log(error)
 
       this.logger.warn(
         `TaxJarClient |${method} ${resource}|: ${error.message}`

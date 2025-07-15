@@ -23,7 +23,7 @@ type TaxJarClientOptions = {
 };
 
 export default class TaxJarProvider implements ITaxProvider {
-  static identifier = "tax-jar-provider";
+  static identifier = "taxjar";
 
   private taxJarClient: TaxJarClient;
   private defaultTaxcode: string;
@@ -72,7 +72,7 @@ export default class TaxJarProvider implements ITaxProvider {
     );
 
     const itemTaxLines: TaxTypes.ItemTaxLineDTO[] =
-     ( (tax.breakdown ?? []) as any).line_items.map((item) => {
+     ( (tax.breakdown ?? []) as any).line_items?.map((item) => {
         const itemVal = items.find((i) => i.id === item.id);
         return {
           line_item_id: item.id,
@@ -81,7 +81,7 @@ export default class TaxJarProvider implements ITaxProvider {
           provider_id: this.getIdentifier(),
           name: `TaxJar-${itemVal?.product_tax_code}`,
         };
-      });
+      })??[];
 
     const shippingTaxLines: TaxTypes.ShippingTaxLineDTO[] = shippingLines.map(
       (i) => {
@@ -95,7 +95,7 @@ export default class TaxJarProvider implements ITaxProvider {
             : 0,
         };
       }
-    );
+    )??[];
 
     return [...itemTaxLines, ...shippingTaxLines];
   }
@@ -103,14 +103,14 @@ export default class TaxJarProvider implements ITaxProvider {
   private async getProductTaxCode(productId: string) {
     const result = await this.deps.remoteQuery.graph({
       entity: "product",
-      fields: ["categories.tax_code.code"],
+      fields: ["metadata"],
       filters: { id: productId },
     });
 
-    if (!result.data.length || result.data[0].categories.length !== 1) {
+    if (!result.data.length) {
       return this.defaultTaxcode;
     }
 
-    return result.data[0].categories[0].tax_code?.code || this.defaultTaxcode;
+    return result.data[0].metadata?.tax_code || this.defaultTaxcode;
   }
 }

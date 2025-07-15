@@ -34,7 +34,7 @@ export default async function resetPasswordTokenHandler({
     template: "reset-password",
     data: {
       // a URL to a frontend application
-      resetLink: `${urlPrefix}/us/reset-password?token=${token}&email=${email}`,
+      resetLink: `${urlPrefix}/reset-password?token=${token}&email=${email}`,
       customerName: ""
     },
   })

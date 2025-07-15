@@ -29,6 +29,9 @@ type OrderPlacedEmailProps = {
 function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProps) {
   const shouldDisplayBanner = email_banner && "title" in email_banner
 
+  const storeUrl = process.env.STOREFRONT_URL
+  const accountUrl = `${storeUrl}/account/orders`
+
   const formatter = new Intl.NumberFormat([], {
     style: "currency",
     currencyDisplay: "narrowSymbol",
@@ -64,7 +67,13 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
               Thank you for your order, {order.customer?.first_name || order.shipping_address?.first_name}
             </Heading>
             <Text className="text-center text-gray-600 mt-2">
-              We're processing your order and will notify you when it ships.
+              Your order number is {order.display_id}. You can check its status under{" "}
+              <Link
+                href={accountUrl}
+                style={{ color: "#0070f3", textDecoration: "underline" }}
+              >
+                My Account
+              </Link>.
             </Text>
           </Container>
 

@@ -3,8 +3,26 @@ import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 const dynamicModules = {
+  tax: {
+     resolve: "@medusajs/medusa/tax",
+     dependencies: ["remoteQuery"],
+      options: {
+        providers: [
+          {
+            resolve: "./src/modules/taxjar",
+            id: "taxjar",
+            options: {
+              apiKey: process.env.TAXJAR_API_KEY,
+              defaultTaxcode: process.env.TAXJAR_DEFAULT_TAXCODE,
+            },
+          },
+        ],
+      },
+  },
+  
   notification:  {
       resolve: "@medusajs/medusa/notification",
+      dependencies: ["remoteQuery"],
       options: {
         providers: [
           {
@@ -18,7 +36,7 @@ const dynamicModules = {
           },
         ],
       },
-    },
+  },
 };
 
 const stripeApiKey = process.env.STRIPE_API_KEY;
@@ -48,7 +66,7 @@ if (isStripeConfigured) {
 
 const modules = {
 
-   ...(process.env.DO_SPACE_URL &&
+    ...(process.env.DO_SPACE_URL &&
   {
     [Modules.FILE]: {
       resolve: '@medusajs/medusa/file',
@@ -70,6 +88,7 @@ const modules = {
       },
     },
   } || {}),
+
 
   [Modules.CACHE]: {
     resolve: '@medusajs/medusa/cache-redis',
@@ -94,10 +113,11 @@ const modules = {
 };
 
 module.exports = defineConfig({
+
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
-	redisUrl: process.env.REDIS_URL,
-	workerMode: process.env.MEDUSA_WORKER_MODE as "shared" | "worker" | "server",
+    redisUrl: process.env.REDIS_URL,
+    workerMode: process.env.MEDUSA_WORKER_MODE as "shared" | "worker" | "server",
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
@@ -106,6 +126,7 @@ module.exports = defineConfig({
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",	  
     }
   },
+  
   admin: {
     vite: () => {
       return {

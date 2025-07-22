@@ -1,9 +1,9 @@
-import { loadEnv, defineConfig, Modules } from '@medusajs/framework/utils'
+import { loadEnv, defineConfig, Modules, ContainerRegistrationKeys } from '@medusajs/framework/utils'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 const dynamicModules = {
-  tax: {
+  [Modules.TAX]: {
      resolve: "@medusajs/medusa/tax",
      dependencies: ["remoteQuery"],
       options: {
@@ -20,7 +20,7 @@ const dynamicModules = {
       },
   },
   
-  notification:  {
+  [Modules.NOTIFICATION]:  {
       resolve: "@medusajs/medusa/notification",
       dependencies: ["remoteQuery"],
       options: {
@@ -37,6 +37,38 @@ const dynamicModules = {
         ],
       },
   },
+
+  [Modules.AUTH]:  {
+    resolve: "@medusajs/medusa/auth",
+    dependencies: [Modules.CACHE, ContainerRegistrationKeys.LOGGER, Modules.CUSTOMER],
+    options: {
+      providers: [
+        {
+          resolve: "@medusajs/medusa/auth-emailpass",
+          id: "emailpass",
+          scope: ["admin"], // or ["admin"] or both
+          options: {
+            // Optional: You can set token TTLs here
+          },
+        },
+        {
+          resolve: "./src/modules/auth-google",
+          id: "google",
+          scope: ["store"],
+          options: {
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+          },
+        },
+      ],
+      actors: {
+        customer: {
+          providers: ["emailpass", "google"],
+        },
+      },
+    },
+  }
 };
 
 const stripeApiKey = process.env.STRIPE_API_KEY;
@@ -96,12 +128,14 @@ const modules = {
       redisUrl: process.env.REDIS_URL,
     },
   },
+  
   [Modules.EVENT_BUS]: {
     resolve: '@medusajs/medusa/event-bus-redis',
     options: {
       redisUrl: process.env.REDIS_URL,
     },
   },
+
   [Modules.WORKFLOW_ENGINE]: {
     resolve: '@medusajs/medusa/workflow-engine-redis',
     options: {
@@ -110,6 +144,39 @@ const modules = {
       },
     },
   },
+
+  // [Modules.AUTH]:  {
+  //   resolve: "@medusajs/medusa/auth",
+  //   dependencies: [Modules.CACHE, ContainerRegistrationKeys.LOGGER],
+  //   options: {
+  //     providers: [
+  //       {
+  //         resolve: "@medusajs/medusa/auth-emailpass",
+  //         id: "emailpass",
+  //         scope: ["admin"], // or ["admin"] or both
+  //         options: {
+  //           // Optional: You can set token TTLs here
+  //         },
+  //       },
+  //       {
+  //         resolve: "@medusajs/medusa/auth-google",
+  //         id: "google",
+  //         scope: ["store"],
+  //         options: {
+  //           clientId: process.env.GOOGLE_CLIENT_ID,
+  //           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  //           callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+  //         },
+  //       },
+  //     ],
+  //     actors: {
+  //       customer: {
+  //         providers: ["emailpass", "google"],
+  //       },
+  //     },
+  //   },
+  // }
+  
 };
 
 module.exports = defineConfig({

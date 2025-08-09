@@ -1,36 +1,48 @@
-import { 
-  ProviderSendNotificationDTO, 
+// src/modules/resend/service.ts
+import * as React from "react"
+import {
+  ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
-} from "@medusajs/framework/types"
-import { 
-  AbstractNotificationProviderService,
-} from "@medusajs/framework/utils"
-import { 
   Logger,
 } from "@medusajs/framework/types"
-import { 
-  Resend,
-  CreateEmailOptions, 
-} from "resend"
+import { AbstractNotificationProviderService } from "@medusajs/framework/utils"
+import { Resend, CreateEmailOptions } from "resend"
+
 import { orderPlacedEmail } from "./emails/order-placed"
 import { resetPasswordEmail } from "./emails/reset-password"
+import { orderShippedEmail } from "./emails/order-shipped" // <-- create this file
+
 type ResendOptions = {
   api_key: string
   from: string
-  html_templates?: Record<string, {
-    subject?: string
-    content: string
-  }>
+  reply_to?: string
+  html_templates?: Record<
+    string,
+    {
+      subject?: string
+      content: string
+    }
+  >
 }
 
-enum Templates {
-  ORDER_PLACED = "order-placed",
-  RESET_PASSWORD= "reset-password"
+// Canonical keys Medusa emits (plus one for auth reset; adjust if you use another)
+const TEMPLATE_KEYS = {
+  ORDER_PLACED: "order.placed",
+  ORDER_SHIPPED: "order.shipped",
+  RESET_PASSWORD: "auth.reset_password",
+} as const
+
+// Allow dashed aliases too, just in case callers send them
+const ALIASES: Record<string, string> = {
+  "order-placed": TEMPLATE_KEYS.ORDER_PLACED,
+  "order-shipped": TEMPLATE_KEYS.ORDER_SHIPPED,
+  "reset-password": TEMPLATE_KEYS.RESET_PASSWORD,
 }
 
-const templates: {[key in Templates]?: (props: unknown) => React.ReactNode} = {
-  [Templates.ORDER_PLACED]: orderPlacedEmail,
-  [Templates.RESET_PASSWORD]: resetPasswordEmail,
+const reactTemplates: Record<string, (props: unknown) => React.ReactNode> = {
+  [TEMPLATE_KEYS.ORDER_PLACED]: orderPlacedEmail,
+  [TEMPLATE_KEYS.ORDER_SHIPPED]: orderShippedEmail,
+  [TEMPLATE_KEYS.RESET_PASSWORD]: resetPasswordEmail,
 }
 
 type InjectedDependencies = {
@@ -38,85 +50,82 @@ type InjectedDependencies = {
 }
 
 class ResendNotificationProviderService extends AbstractNotificationProviderService {
-     static identifier = "notification-resend"
+  // IMPORTANT: Keep this in sync with the provider id in medusa-config (id: "resend")
+  static identifier = "resend"
+
   private resendClient: Resend
   private options: ResendOptions
   private logger: Logger
 
-     constructor(
-    { logger }: InjectedDependencies, 
-    options: ResendOptions
-  ) {
+  constructor({ logger }: InjectedDependencies, options: ResendOptions) {
     super()
     this.resendClient = new Resend(options.api_key)
     this.options = options
     this.logger = logger
   }
-   
-    getTemplate(template: Templates) {
-    if (this.options.html_templates?.[template]) {
-      return this.options.html_templates[template].content
-    }
-    const allowedTemplates = Object.keys(templates)
 
-    if (!allowedTemplates.includes(template)) {
-      return null
-    }
-
-    return templates[template]
+  private normalizeKey(key: string) {
+    return ALIASES[key] ?? key
   }
 
-    getTemplateSubject(template: Templates) {
-    if (this.options.html_templates?.[template]?.subject) {
-      return this.options.html_templates[template].subject
-    }
-    switch(template) {
-      case Templates.ORDER_PLACED:
+  private getTemplateFn(templateKey: string) {
+    // 1) Allow inline HTML override from env-config if provided
+    const inline = this.options.html_templates?.[templateKey]
+    if (inline?.content) return inline.content
+
+    // 2) React components map
+    return reactTemplates[templateKey] ?? null
+  }
+
+  private getSubject(templateKey: string) {
+    const inline = this.options.html_templates?.[templateKey]
+    if (inline?.subject) return inline.subject
+
+    switch (templateKey) {
+      case TEMPLATE_KEYS.ORDER_PLACED:
         return "Order Confirmation"
-      case Templates.RESET_PASSWORD:
-        return "Reset Password"
+      case TEMPLATE_KEYS.ORDER_SHIPPED:
+        return "Your Order Has Shipped"
+      case TEMPLATE_KEYS.RESET_PASSWORD:
+        return "Reset Your Password"
       default:
-        return "New Email"
+        return "SmartTract Notification"
     }
   }
 
   async send(
     notification: ProviderSendNotificationDTO
   ): Promise<ProviderSendNotificationResultsDTO> {
-    const template = this.getTemplate(notification.template as Templates)
+    const originalKey = String(notification.template)
+    const key = this.normalizeKey(originalKey)
 
+    const template = this.getTemplateFn(key)
     if (!template) {
-      this.logger.error(`Couldn't find an email template for ${notification.template}. The valid options are ${Object.values(Templates)}`)
+      this.logger.error(
+        `Resend: no template for "${originalKey}" (normalized "${key}"). ` +
+          `Available: ${Object.keys(reactTemplates).join(", ")}`
+      )
       return {}
     }
 
-    const commonOptions = {
+    const common: Omit<CreateEmailOptions, "react" | "html"> = {
       from: this.options.from,
       to: [notification.to],
-      subject: this.getTemplateSubject(notification.template as Templates),
+      replyTo: this.options.reply_to ?? this.options.from,
+      subject: notification.subject ?? this.getSubject(key),
     }
 
     let emailOptions: CreateEmailOptions
     if (typeof template === "string") {
-      emailOptions = {
-        ...commonOptions,
-        html: template,
-      }
+      emailOptions = { ...common, html: template }
     } else {
-      emailOptions = {
-        ...commonOptions,
-        react: template(notification.data),
-      }
+      emailOptions = { ...common, react: template(notification.data) }
     }
 
     const { data, error } = await this.resendClient.emails.send(emailOptions)
 
     if (error || !data) {
-      if (error) {
-        this.logger.error("Failed to send email", error)
-      } else {
-        this.logger.error("Failed to send email: unknown error")
-      }
+      this.logger.error("Resend: failed to send email", error ?? {})
       return {}
     }
 

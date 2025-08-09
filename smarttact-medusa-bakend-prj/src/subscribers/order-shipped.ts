@@ -16,7 +16,6 @@ export default async function orderShippedHandler({
   const orders = container.resolve<IOrderModuleService>(Modules.ORDER)
   const remoteQuery = container.resolve<any>("remoteQuery")
 
-  // Small helper to make logs consistent
   const log = (lvl: "info" | "error", msg: string) =>
     logger[lvl](`[order-shipped] ${msg}`)
 
@@ -36,10 +35,9 @@ export default async function orderShippedHandler({
     const sRows = await remoteQuery({
       shipments: {
         __args: { id: shipmentId },
-        fields: ["id", "reference_id"], // reference_id points to the fulfillment
+        fields: ["id", "reference_id"],
       },
     })
-
     const fulfillmentId = sRows?.[0]?.reference_id as string | undefined
     if (!fulfillmentId) {
       log("error", `no fulfillment reference for shipment ${shipmentId}`)
@@ -60,7 +58,6 @@ export default async function orderShippedHandler({
         ],
       },
     })
-
     const fulfillment = (fRows?.[0] ?? {}) as any
     const firstLink = Array.isArray(fulfillment.tracking_links)
       ? fulfillment.tracking_links[0] ?? {}
@@ -72,29 +69,38 @@ export default async function orderShippedHandler({
       firstLink.carrier ?? fulfillment.provider_id ?? null
 
     // 3) find the order that contains this fulfillment
-    //    (selector type is loose here to avoid TS friction across versions)
     const oList = await orders.listOrders(
       { fulfillment_ids: [fulfillmentId] } as any,
-      { relations: ["items", "shipping_methods", "customer"] }
+      { relations: ["items", "shipping_methods"] } // no 'customer' relation to keep TS happy
     )
-
     const order = oList?.[0]
-    const toEmail: string | undefined =
-      order?.email || order?.customer?.email || undefined
-
-    if (!order || !toEmail) {
-      log("error", `could not resolve order/email for fulfillment ${fulfillmentId}`)
+    if (!order) {
+      log("error", `could not resolve order for fulfillment ${fulfillmentId}`)
       return
     }
 
-    // 4) enqueue notification -> your Resend provider will render "order.shipped"
+    // 4) email: prefer order.email; if absent, fetch via remoteQuery
+    let toEmail: string | undefined = (order as any)?.email
+    if (!toEmail) {
+      const oRows = await remoteQuery({
+        orders: {
+          __args: { id: order.id },
+          fields: ["id", "email"],
+        },
+      })
+      toEmail = oRows?.[0]?.email
+    }
+    if (!toEmail) {
+      log("error", `no email found for order ${order.id}`)
+      return
+    }
+
+    // 5) enqueue notification -> Resend provider renders "order.shipped"
     await notifications.createNotifications({
       to: toEmail,
       channel: "email",
       template: "order.shipped",
       data: { order, tracking_number, tracking_url, carrier },
-      // If you ever need to force a specific provider id:
-      // provider_id: "resend",
     })
 
     log(
@@ -103,13 +109,11 @@ export default async function orderShippedHandler({
     )
   } catch (e) {
     const err = e as any
-    const msg = err?.message || String(err)
-    log("error", `subscriber failed: ${msg}`)
+    log("error", `subscriber failed: ${err?.message || String(err)}`)
     if (err?.stack) logger.error(err.stack)
   }
 }
 
-// Bind to the event emitted by the order shipment workflow
 export const config: SubscriberConfig = {
   event: "shipment.created",
 }

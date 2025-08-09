@@ -31,11 +31,18 @@ const TEMPLATE_KEYS = {
   RESET_PASSWORD: "auth.reset_password",
 } as const
 
+// Add these aliases
 const ALIASES: Record<string, string> = {
-  "order-placed": TEMPLATE_KEYS.ORDER_PLACED,
-  "order-shipped": TEMPLATE_KEYS.ORDER_SHIPPED,
-  "reset-password": TEMPLATE_KEYS.RESET_PASSWORD,
+  "order-placed": "order.placed",
+  "order-shipped": "order.shipped",
+  "reset-password": "auth.reset_password",
+
+  // ➜ map Medusa fulfillment events to your shipped template
+  "fulfillment.shipment_created": "order.shipped",
+  "order.shipment_created": "order.shipped",
+  "fulfillment.shipment_shipped": "order.shipped",
 }
+
 
 const reactTemplates: Record<string, (props: unknown) => React.ReactNode> = {
   [TEMPLATE_KEYS.ORDER_PLACED]: orderPlacedEmail,
@@ -95,7 +102,7 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
   async send(notification: ProviderSendNotificationDTO): Promise<ProviderSendNotificationResultsDTO> {
     const originalKey = String(notification.template)
     const key = this.normalizeKey(originalKey)
-
+    this.logger.info(`Resend send(): template="${originalKey}" → "${key}" to=${notification.to}`)
     const template = this.getTemplateFn(key)
     if (!template) {
       this.logger.error(

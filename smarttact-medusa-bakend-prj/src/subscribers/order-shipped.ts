@@ -16,72 +16,100 @@ export default async function orderShippedHandler({
   const orders = container.resolve<IOrderModuleService>(Modules.ORDER)
   const remoteQuery = container.resolve<any>("remoteQuery")
 
+  // Small helper to make logs consistent
+  const log = (lvl: "info" | "error", msg: string) =>
+    logger[lvl](`[order-shipped] ${msg}`)
+
   try {
     const shipmentId = data?.id
     if (!shipmentId) {
-      logger.error("order-shipped: missing shipment id")
+      log("error", "missing shipment id on event payload")
       return
     }
 
-    if (data.no_notification) {
-      logger.info(`order-shipped: skip (no_notification=true) [${shipmentId}]`)
+    if (data?.no_notification) {
+      log("info", `skip email (no_notification=true) [shipment=${shipmentId}]`)
       return
     }
 
-    // shipment -> fulfillment
-    const [shipment] = await remoteQuery({
-      entry_point: "shipments",
-      fields: ["id", "reference_id"],
-      variables: { id: shipmentId },
+    // 1) shipment -> fulfillment id
+    const sRows = await remoteQuery({
+      shipments: {
+        __args: { id: shipmentId },
+        fields: ["id", "reference_id"], // reference_id points to the fulfillment
+      },
     })
-    const fulfillmentId = shipment?.reference_id as string
+
+    const fulfillmentId = sRows?.[0]?.reference_id as string | undefined
     if (!fulfillmentId) {
-      logger.error(`order-shipped: no fulfillment for shipment ${shipmentId}`)
+      log("error", `no fulfillment reference for shipment ${shipmentId}`)
       return
     }
 
-    // fulfillment -> tracking
-    const [fulfillment] = await remoteQuery({
-      entry_point: "fulfillments",
-      fields: [
-        "id",
-        "provider_id",
-        "tracking_links.url",
-        "tracking_links.tracking_number",
-      ],
-      variables: { id: fulfillmentId },
+    // 2) fulfillment -> tracking info
+    const fRows = await remoteQuery({
+      fulfillments: {
+        __args: { id: fulfillmentId },
+        fields: [
+          "id",
+          "provider_id",
+          "tracking_links.id",
+          "tracking_links.url",
+          "tracking_links.tracking_number",
+          "tracking_links.carrier",
+        ],
+      },
     })
 
-    const t = fulfillment?.tracking_links?.[0] ?? {}
-    const tracking_number = t.tracking_number ?? null
-    const tracking_url = t.url ?? null
-    const carrier = fulfillment?.provider_id ?? null
+    const fulfillment = (fRows?.[0] ?? {}) as any
+    const firstLink = Array.isArray(fulfillment.tracking_links)
+      ? fulfillment.tracking_links[0] ?? {}
+      : {}
 
-    // order containing this fulfillment
-    const [order] = await orders.listOrders(
+    const tracking_number: string | null = firstLink.tracking_number ?? null
+    const tracking_url: string | null = firstLink.url ?? null
+    const carrier: string | null =
+      firstLink.carrier ?? fulfillment.provider_id ?? null
+
+    // 3) find the order that contains this fulfillment
+    //    (selector type is loose here to avoid TS friction across versions)
+    const oList = await orders.listOrders(
       { fulfillment_ids: [fulfillmentId] } as any,
-      { relations: ["items", "shipping_methods"] }
+      { relations: ["items", "shipping_methods", "customer"] }
     )
-    if (!order?.email) {
-      logger.error(`order-shipped: order/email not found for fulfillment ${fulfillmentId}`)
+
+    const order = oList?.[0]
+    const toEmail: string | undefined =
+      order?.email || order?.customer?.email || undefined
+
+    if (!order || !toEmail) {
+      log("error", `could not resolve order/email for fulfillment ${fulfillmentId}`)
       return
     }
 
+    // 4) enqueue notification -> your Resend provider will render "order.shipped"
     await notifications.createNotifications({
-      to: order.email,
+      to: toEmail,
       channel: "email",
       template: "order.shipped",
       data: { order, tracking_number, tracking_url, carrier },
+      // If you ever need to force a specific provider id:
+      // provider_id: "resend",
     })
 
-    logger.info(
-      `order-shipped: queued shipped email to ${order.email} (shipment ${shipmentId})`
+    log(
+      "info",
+      `queued shipped email to ${toEmail} (shipment=${shipmentId}, fulfillment=${fulfillmentId})`
     )
   } catch (e) {
-    container.resolve<Logger>("logger").error("order-shipped subscriber failed", e as any)
+    const err = e as any
+    const msg = err?.message || String(err)
+    log("error", `subscriber failed: ${msg}`)
+    if (err?.stack) logger.error(err.stack)
   }
 }
 
+// Bind to the event emitted by the order shipment workflow
 export const config: SubscriberConfig = {
   event: "shipment.created",
 }

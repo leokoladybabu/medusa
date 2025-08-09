@@ -25,34 +25,28 @@ type ResendOptions = {
   >
 }
 
-// Canonical keys Medusa emits (plus one for auth reset; adjust if you use another)
 const TEMPLATE_KEYS = {
   ORDER_PLACED: "order.placed",
   ORDER_SHIPPED: "order.shipped",
   RESET_PASSWORD: "auth.reset_password",
 } as const
 
-// Allow dashed aliases too, just in case callers send them
 const ALIASES: Record<string, string> = {
   "order-placed": TEMPLATE_KEYS.ORDER_PLACED,
   "order-shipped": TEMPLATE_KEYS.ORDER_SHIPPED,
   "reset-password": TEMPLATE_KEYS.RESET_PASSWORD,
 }
 
-type TemplateKey = typeof TEMPLATE_KEYS[keyof typeof TEMPLATE_KEYS]
-const reactTemplates: Record<TemplateKey, (props: unknown) => React.ReactNode> = {
+const reactTemplates: Record<string, (props: unknown) => React.ReactNode> = {
   [TEMPLATE_KEYS.ORDER_PLACED]: orderPlacedEmail,
   [TEMPLATE_KEYS.ORDER_SHIPPED]: orderShippedEmail,
   [TEMPLATE_KEYS.RESET_PASSWORD]: resetPasswordEmail,
 }
 
-
-type InjectedDependencies = {
-  logger: Logger
-}
+type InjectedDependencies = { logger: Logger }
 
 class ResendNotificationProviderService extends AbstractNotificationProviderService {
-  // IMPORTANT: Keep this in sync with the provider id in medusa-config (id: "resend")
+  // must match your provider id in medusa-config
   static identifier = "resend"
 
   private resendClient: Resend
@@ -71,18 +65,21 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
   }
 
   private getTemplateFn(templateKey: string) {
-    // 1) Allow inline HTML override from env-config if provided
     const inline = this.options.html_templates?.[templateKey]
     if (inline?.content) return inline.content
-
-    // 2) React components map
     return reactTemplates[templateKey] ?? null
   }
 
-  private getSubject(templateKey: string) {
+  private getSubject(templateKey: string, notification?: ProviderSendNotificationDTO) {
+    // inline subject override
     const inline = this.options.html_templates?.[templateKey]
     if (inline?.subject) return inline.subject
 
+    // allow subject in data: { subject: "..." }
+    const dataSubject = (notification?.data as any)?.subject
+    if (typeof dataSubject === "string" && dataSubject.trim()) return dataSubject.trim()
+
+    // defaults
     switch (templateKey) {
       case TEMPLATE_KEYS.ORDER_PLACED:
         return "Order Confirmation"
@@ -95,27 +92,23 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
     }
   }
 
-  async send(
-    notification: ProviderSendNotificationDTO
-  ): Promise<ProviderSendNotificationResultsDTO> {
+  async send(notification: ProviderSendNotificationDTO): Promise<ProviderSendNotificationResultsDTO> {
     const originalKey = String(notification.template)
     const key = this.normalizeKey(originalKey)
 
     const template = this.getTemplateFn(key)
     if (!template) {
       this.logger.error(
-        `Resend: no template for "${originalKey}" (normalized "${key}"). ` +
-        `Available: ${Object.values(TEMPLATE_KEYS).join(", ")}`
+        `Resend: no template for "${originalKey}" (normalized "${key}"). Available: ${Object.keys(reactTemplates).join(", ")}`
       )
       return {}
     }
 
-
     const common: Omit<CreateEmailOptions, "react" | "html"> = {
       from: this.options.from,
       to: [notification.to],
-      reply_to: this.options.reply_to ?? this.options.from,
-      subject: notification.subject ?? this.getSubject(key),
+      replyTo: this.options.reply_to ?? this.options.from,
+      subject: this.getSubject(key, notification),
     }
 
     let emailOptions: CreateEmailOptions
@@ -128,7 +121,13 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
     const { data, error } = await this.resendClient.emails.send(emailOptions)
 
     if (error || !data) {
-      this.logger.error("Resend: failed to send email", error ?? {})
+      if (error) {
+        // Resend returns a typed ErrorResponse; wrap to satisfy logger
+        const wrapped = new Error(typeof error === "string" ? error : JSON.stringify(error))
+        this.logger.error("Resend: failed to send email", wrapped)
+      } else {
+        this.logger.error("Resend: failed to send email: unknown error")
+      }
       return {}
     }
 

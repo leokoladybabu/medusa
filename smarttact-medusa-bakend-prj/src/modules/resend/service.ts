@@ -10,7 +10,7 @@ import { Resend, CreateEmailOptions } from "resend"
 
 import { orderPlacedEmail } from "./emails/order-placed"
 import { resetPasswordEmail } from "./emails/reset-password"
-import { orderShippedEmail } from "./emails/order-shipped" // <-- create this file
+import { orderShippedEmail } from "./emails/order-shipped"
 
 type ResendOptions = {
   api_key: string
@@ -39,11 +39,13 @@ const ALIASES: Record<string, string> = {
   "reset-password": TEMPLATE_KEYS.RESET_PASSWORD,
 }
 
-const reactTemplates: Record<string, (props: unknown) => React.ReactNode> = {
+type TemplateKey = typeof TEMPLATE_KEYS[keyof typeof TEMPLATE_KEYS]
+const reactTemplates: Record<TemplateKey, (props: unknown) => React.ReactNode> = {
   [TEMPLATE_KEYS.ORDER_PLACED]: orderPlacedEmail,
   [TEMPLATE_KEYS.ORDER_SHIPPED]: orderShippedEmail,
   [TEMPLATE_KEYS.RESET_PASSWORD]: resetPasswordEmail,
 }
+
 
 type InjectedDependencies = {
   logger: Logger
@@ -103,15 +105,16 @@ class ResendNotificationProviderService extends AbstractNotificationProviderServ
     if (!template) {
       this.logger.error(
         `Resend: no template for "${originalKey}" (normalized "${key}"). ` +
-          `Available: ${Object.keys(reactTemplates).join(", ")}`
+        `Available: ${Object.values(TEMPLATE_KEYS).join(", ")}`
       )
       return {}
     }
 
+
     const common: Omit<CreateEmailOptions, "react" | "html"> = {
       from: this.options.from,
       to: [notification.to],
-      replyTo: this.options.reply_to ?? this.options.from,
+      reply_to: this.options.reply_to ?? this.options.from,
       subject: notification.subject ?? this.getSubject(key),
     }
 

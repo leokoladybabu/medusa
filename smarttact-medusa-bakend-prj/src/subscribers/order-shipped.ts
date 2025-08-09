@@ -19,17 +19,16 @@ export default async function orderShippedHandler({
   try {
     const shipmentId = data?.id
     if (!shipmentId) {
-      logger.error("order-shipped: missing shipment id in payload")
+      logger.error("order-shipped: missing shipment id")
       return
     }
 
-    // Honor “Don’t send notification” toggle, if used
     if (data.no_notification) {
-      logger.info(`order-shipped: skipping, no_notification=true (shipment ${shipmentId})`)
+      logger.info(`order-shipped: skip (no_notification=true) [${shipmentId}]`)
       return
     }
 
-    // 1) shipment -> fulfillment id
+    // shipment -> fulfillment
     const [shipment] = await remoteQuery({
       entry_point: "shipments",
       fields: ["id", "reference_id"],
@@ -37,11 +36,11 @@ export default async function orderShippedHandler({
     })
     const fulfillmentId = shipment?.reference_id as string
     if (!fulfillmentId) {
-      logger.error(`order-shipped: shipment ${shipmentId} missing reference_id`)
+      logger.error(`order-shipped: no fulfillment for shipment ${shipmentId}`)
       return
     }
 
-    // 2) fulfillment -> tracking info
+    // fulfillment -> tracking
     const [fulfillment] = await remoteQuery({
       entry_point: "fulfillments",
       fields: [
@@ -58,17 +57,16 @@ export default async function orderShippedHandler({
     const tracking_url = t.url ?? null
     const carrier = fulfillment?.provider_id ?? null
 
-    // 3) order containing this fulfillment
+    // order containing this fulfillment
     const [order] = await orders.listOrders(
       { fulfillment_ids: [fulfillmentId] } as any,
       { relations: ["items", "shipping_methods"] }
     )
     if (!order?.email) {
-      logger.error(`order-shipped: no order/email for fulfillment ${fulfillmentId}`)
+      logger.error(`order-shipped: order/email not found for fulfillment ${fulfillmentId}`)
       return
     }
 
-    // 4) send the email via the notification module (Resend)
     await notifications.createNotifications({
       to: order.email,
       channel: "email",
@@ -85,5 +83,5 @@ export default async function orderShippedHandler({
 }
 
 export const config: SubscriberConfig = {
-  event: "fulfillment.shipment.created",
+  event: "shipment.created",
 }

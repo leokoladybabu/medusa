@@ -44,55 +44,10 @@ export default function OrderShippedEmailComponent({
     currency: order.currency_code || 'USD',
   })
 
-  const price = (v: BigNumberValue) => {
-    try {
-      if (!v && v !== 0) return fmt.format(0)
-      if (typeof v === "number") return fmt.format(v)
-      if (typeof v === "string") {
-        const num = parseFloat(v)
-        return isNaN(num) ? fmt.format(0) : fmt.format(num)
-      }
-      if (v && typeof v === 'object' && 'raw' in v) {
-        const num = parseFloat(String(v.raw))
-        return isNaN(num) ? fmt.format(0) : fmt.format(num)
-      }
-      // Handle BigNumber or other object types
-      const str = String(v)
-      const num = parseFloat(str)
-      return isNaN(num) ? fmt.format(0) : fmt.format(num)
-    } catch (error) {
-      console.log('Price formatting error for value:', v, 'error:', error)
-      return fmt.format(0)
-    }
-  }
-
   const idLabel =
     typeof order.display_id === "number"
       ? `#${order.display_id}`
       : order.display_id || order.id
-
-  const trackingBlock = (
-    <>
-      <Text className="text-gray-700" style={{ margin: "0 0 12px" }}>
-        We have shipped your package.
-      </Text>
-
-      {tracking_number ? (
-        <Text className="text-gray-700" style={{ margin: "0 0 12px" }}>
-          Tracking number: <strong>{tracking_number}</strong>
-        </Text>
-      ) : null}
-
-      {tracking_url ? (
-        <Text className="text-gray-700" style={{ margin: "0 0 16px" }}>
-          Track your shipment here:{" "}
-          <Link href={tracking_url} style={{ color: "#0070f3", textDecoration: "underline" }}>
-            {tracking_url}
-          </Link>
-        </Text>
-      ) : null}
-    </>
-  )
 
   return (
     <Tailwind>

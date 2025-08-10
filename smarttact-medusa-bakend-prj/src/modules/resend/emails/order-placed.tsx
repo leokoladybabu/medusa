@@ -67,7 +67,7 @@ function OrderPlacedEmailComponent({ order, email_banner }: OrderPlacedEmailProp
               Thank you for your order, {order.customer?.first_name || order.shipping_address?.first_name}
             </Heading>
             <Text className="text-center text-gray-600 mt-2">
-              Your order number is {order.display_id}. You can check its status under{" "}
+               You can also check details under{" "}
               <Link
                 href={accountUrl}
                 style={{ color: "#0070f3", textDecoration: "underline" }}

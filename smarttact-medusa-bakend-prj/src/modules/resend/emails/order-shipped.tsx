@@ -45,10 +45,25 @@ export default function OrderShippedEmailComponent({
   })
 
   const price = (v: BigNumberValue) => {
-    if (typeof v === "number") return fmt.format(v)
-    if (typeof v === "string") return fmt.format(parseFloat(v))
-    if (v && typeof v === 'object' && 'raw' in v) return fmt.format(parseFloat(String(v.raw)))
-    return fmt.format(0)
+    try {
+      if (!v && v !== 0) return fmt.format(0)
+      if (typeof v === "number") return fmt.format(v)
+      if (typeof v === "string") {
+        const num = parseFloat(v)
+        return isNaN(num) ? fmt.format(0) : fmt.format(num)
+      }
+      if (v && typeof v === 'object' && 'raw' in v) {
+        const num = parseFloat(String(v.raw))
+        return isNaN(num) ? fmt.format(0) : fmt.format(num)
+      }
+      // Handle BigNumber or other object types
+      const str = String(v)
+      const num = parseFloat(str)
+      return isNaN(num) ? fmt.format(0) : fmt.format(num)
+    } catch (error) {
+      console.log('Price formatting error for value:', v, 'error:', error)
+      return fmt.format(0)
+    }
   }
 
   const idLabel =

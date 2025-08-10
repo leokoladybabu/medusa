@@ -121,6 +121,8 @@ export default async function orderShippedHandler({
       return
     }
 
+    log("info", `[order-shipped] order data structure: ${JSON.stringify(order, null, 2)}`)
+
     // 4) email: use order.email
     let toEmail: string | undefined = (order as any)?.email
     if (!toEmail) {

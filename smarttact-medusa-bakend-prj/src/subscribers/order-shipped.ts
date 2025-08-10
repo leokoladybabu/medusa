@@ -77,6 +77,7 @@ export default async function orderShippedHandler({
         fields: [
           "id",
           "email",
+          "currency_code",
           "items.*",
           "shipping_methods.*",
         ],

@@ -3,6 +3,7 @@ import type { SubscriberArgs, SubscriberConfig } from "@medusajs/framework"
 import type {
   INotificationModuleService,
   IOrderModuleService,
+  IFulfillmentModuleService,
   Logger,
 } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
@@ -14,6 +15,7 @@ export default async function orderShippedHandler({
   const logger = container.resolve<Logger>("logger")
   const notifications = container.resolve<INotificationModuleService>(Modules.NOTIFICATION)
   const orders = container.resolve<IOrderModuleService>(Modules.ORDER)
+  const fulfillmentService = container.resolve<IFulfillmentModuleService>(Modules.FULFILLMENT)
   const remoteQuery = container.resolve<any>("remoteQuery")
 
   const log = (lvl: "info" | "error", msg: string) =>
@@ -31,51 +33,48 @@ export default async function orderShippedHandler({
       return
     }
 
-  // 1) fulfillment id is emitted in the event payload (shipment.created uses the updated fulfillment's id)
-  const fulfillmentId = shipmentId
+    // 1) fulfillment id is emitted in the event payload (shipment.created uses the updated fulfillment's id)
+    const fulfillmentId = shipmentId
 
-    // 2) fulfillment -> tracking info (labels contain tracking_number and tracking_url)
-    const fRows = await remoteQuery({
-      fulfillments: {
-        __args: { id: fulfillmentId },
-        fields: [
-          "id",
-          "provider_id",
-          "labels.id",
-          "labels.tracking_number",
-          "labels.tracking_url",
-          "labels.label_url",
-        ],
-      },
-    })
-    const fulfillment = (fRows?.[0] ?? {}) as any
+    // 2) Get fulfillment data including labels using the fulfillment service
+    let tracking_number: string | null = null
+    let tracking_url: string | null = null
+    let carrier: string | null = null
     
-    // Also try to get labels directly
-    const labelRows = await remoteQuery({
-      fulfillment_labels: {
-        __args: { fulfillment_id: fulfillmentId },
-        fields: [
-          "id",
-          "tracking_number", 
-          "tracking_url",
-          "label_url",
-        ],
-      },
-    })
+    try {
+      const fulfillmentData = await fulfillmentService.retrieveFulfillment(fulfillmentId, {
+        relations: ["labels"]
+      })
+      
+      log("info", `fulfillment service data: ${JSON.stringify(fulfillmentData)}`)
+      
+      carrier = fulfillmentData.provider_id ?? null
+      
+      // Extract tracking from labels
+      if (fulfillmentData.labels && fulfillmentData.labels.length > 0) {
+        const firstLabel = fulfillmentData.labels[0]
+        tracking_number = firstLabel.tracking_number ?? null
+        tracking_url = (firstLabel.tracking_url === "#" ? null : firstLabel.tracking_url) ?? null
+      }
+    } catch (fulfillmentError) {
+      log("error", `Failed to retrieve fulfillment via service: ${fulfillmentError.message}`)
+      
+      // Fallback to remoteQuery without labels
+      const fRows = await remoteQuery({
+        fulfillments: {
+          __args: { id: fulfillmentId },
+          fields: [
+            "id",
+            "provider_id",
+          ],
+        },
+      })
+      const fulfillment = (fRows?.[0] ?? {}) as any
+      carrier = fulfillment.provider_id ?? null
+      log("info", `fallback fulfillment data: ${JSON.stringify(fulfillment)}`)
+    }
 
-    log("info", `fulfillment data: ${JSON.stringify(fulfillment)}`)
-    log("info", `fulfillment labels direct: ${JSON.stringify(labelRows)}`)
-
-    const firstLink = Array.isArray(fulfillment.labels) && fulfillment.labels.length > 0
-      ? fulfillment.labels[0] 
-      : (Array.isArray(labelRows) && labelRows.length > 0 ? labelRows[0] : {})
-
-    log("info", `using label data: ${JSON.stringify(firstLink)}`)
-
-    const tracking_number: string | null = firstLink.tracking_number ?? null
-    const tracking_url: string | null = (firstLink.tracking_url === "#" ? null : firstLink.tracking_url) ?? null
-    const carrier: string | null =
-      fulfillment.provider_id ?? null
+    log("info", `extracted tracking - number: ${tracking_number}, url: ${tracking_url}, carrier: ${carrier}`)
 
     // 3) find the order that contains this fulfillment via link table
     const ofRows = await remoteQuery({

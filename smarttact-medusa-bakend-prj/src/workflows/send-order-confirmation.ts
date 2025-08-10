@@ -39,15 +39,27 @@ export const sendOrderConfirmationWorkflow = createWorkflow(
       },
     } as any)
     
-    const notification = sendNotificationStep([{
-      to: orders[0].email,
-      channel: "email",
-      template: "order-placed",
-      data: {
-        order: orders[0],
+    const notifications = sendNotificationStep([
+      // Send to customer
+      {
+        to: orders[0].email,
+        channel: "email",
+        template: "order-placed",
+        data: {
+          order: orders[0],
+        },
       },
-    }])
+      // Send copy to business email
+      {
+        to: "leokoladybabu@smart-tract.com",
+        channel: "email", 
+        template: "order-placed",
+        data: {
+          order: orders[0],
+        },
+      }
+    ])
 
-    return new WorkflowResponse(notification)
+    return new WorkflowResponse(notifications)
   }
 )

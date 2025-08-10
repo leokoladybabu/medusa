@@ -53,6 +53,8 @@ export default async function orderShippedHandler({
       ? fulfillment.labels[0] ?? {}
       : {}
 
+    log("info", `fulfillment labels: ${JSON.stringify(fulfillment.labels)}`)
+
     const tracking_number: string | null = firstLink.tracking_number ?? null
     const tracking_url: string | null = firstLink.tracking_url ?? null
     const carrier: string | null =
@@ -106,7 +108,7 @@ export default async function orderShippedHandler({
 
     log(
       "info",
-      `queued shipped email to ${toEmail} (shipment=${shipmentId}, fulfillment=${fulfillmentId})`
+      `queued shipped email to ${toEmail} (shipment=${shipmentId}, fulfillment=${fulfillmentId}) tracking: ${tracking_number || "none"}, url: ${tracking_url || "none"}, carrier: ${carrier || "none"}`
     )
   } catch (e) {
     const err = e as any

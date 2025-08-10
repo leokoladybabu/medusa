@@ -58,28 +58,38 @@ export default async function orderShippedHandler({
     const carrier: string | null =
       fulfillment.provider_id ?? null
 
-    // 3) find the order that contains this fulfillment
-    const oList = await orders.listOrders(
-      { fulfillment_ids: [fulfillmentId] } as any,
-      { relations: ["items", "shipping_methods"] } // no 'customer' relation to keep TS happy
-    )
-    const order = oList?.[0]
+    // 3) find the order that contains this fulfillment via link table
+    const ofRows = await remoteQuery({
+      order_fulfillments: {
+        __args: { fulfillment_id: fulfillmentId },
+        fields: ["order_id"],
+      },
+    })
+    const orderId = ofRows?.[0]?.order_id as string | undefined
+    if (!orderId) {
+      log("error", `could not resolve order link for fulfillment ${fulfillmentId}`)
+      return
+    }
+
+    const oRows = await remoteQuery({
+      orders: {
+        __args: { id: orderId },
+        fields: [
+          "id",
+          "email",
+          "items.*",
+          "shipping_methods.*",
+        ],
+      },
+    })
+    const order = oRows?.[0]
     if (!order) {
       log("error", `could not resolve order for fulfillment ${fulfillmentId}`)
       return
     }
 
-    // 4) email: prefer order.email; if absent, fetch via remoteQuery
+    // 4) email: use order.email
     let toEmail: string | undefined = (order as any)?.email
-    if (!toEmail) {
-      const oRows = await remoteQuery({
-        orders: {
-          __args: { id: order.id },
-          fields: ["id", "email"],
-        },
-      })
-      toEmail = oRows?.[0]?.email
-    }
     if (!toEmail) {
       log("error", `no email found for order ${order.id}`)
       return

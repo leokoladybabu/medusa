@@ -31,42 +31,32 @@ export default async function orderShippedHandler({
       return
     }
 
-    // 1) shipment -> fulfillment id
-    const sRows = await remoteQuery({
-      shipments: {
-        __args: { id: shipmentId },
-        fields: ["id", "reference_id"],
-      },
-    })
-    const fulfillmentId = sRows?.[0]?.reference_id as string | undefined
-    if (!fulfillmentId) {
-      log("error", `no fulfillment reference for shipment ${shipmentId}`)
-      return
-    }
+  // 1) fulfillment id is emitted in the event payload (shipment.created uses the updated fulfillment's id)
+  const fulfillmentId = shipmentId
 
-    // 2) fulfillment -> tracking info
+    // 2) fulfillment -> tracking info (labels contain tracking_number and tracking_url)
     const fRows = await remoteQuery({
       fulfillments: {
         __args: { id: fulfillmentId },
         fields: [
           "id",
           "provider_id",
-          "tracking_links.id",
-          "tracking_links.url",
-          "tracking_links.tracking_number",
-          "tracking_links.carrier",
+          "labels.id",
+          "labels.tracking_number",
+          "labels.tracking_url",
+          "labels.label_url",
         ],
       },
     })
     const fulfillment = (fRows?.[0] ?? {}) as any
-    const firstLink = Array.isArray(fulfillment.tracking_links)
-      ? fulfillment.tracking_links[0] ?? {}
+    const firstLink = Array.isArray(fulfillment.labels)
+      ? fulfillment.labels[0] ?? {}
       : {}
 
     const tracking_number: string | null = firstLink.tracking_number ?? null
-    const tracking_url: string | null = firstLink.url ?? null
+    const tracking_url: string | null = firstLink.tracking_url ?? null
     const carrier: string | null =
-      firstLink.carrier ?? fulfillment.provider_id ?? null
+      fulfillment.provider_id ?? null
 
     // 3) find the order that contains this fulfillment
     const oList = await orders.listOrders(

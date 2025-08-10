@@ -49,14 +49,31 @@ export default async function orderShippedHandler({
       },
     })
     const fulfillment = (fRows?.[0] ?? {}) as any
-    const firstLink = Array.isArray(fulfillment.labels)
-      ? fulfillment.labels[0] ?? {}
-      : {}
+    
+    // Also try to get labels directly
+    const labelRows = await remoteQuery({
+      fulfillment_labels: {
+        __args: { fulfillment_id: fulfillmentId },
+        fields: [
+          "id",
+          "tracking_number", 
+          "tracking_url",
+          "label_url",
+        ],
+      },
+    })
 
-    log("info", `fulfillment labels: ${JSON.stringify(fulfillment.labels)}`)
+    log("info", `fulfillment data: ${JSON.stringify(fulfillment)}`)
+    log("info", `fulfillment labels direct: ${JSON.stringify(labelRows)}`)
+
+    const firstLink = Array.isArray(fulfillment.labels) && fulfillment.labels.length > 0
+      ? fulfillment.labels[0] 
+      : (Array.isArray(labelRows) && labelRows.length > 0 ? labelRows[0] : {})
+
+    log("info", `using label data: ${JSON.stringify(firstLink)}`)
 
     const tracking_number: string | null = firstLink.tracking_number ?? null
-    const tracking_url: string | null = firstLink.tracking_url ?? null
+    const tracking_url: string | null = (firstLink.tracking_url === "#" ? null : firstLink.tracking_url) ?? null
     const carrier: string | null =
       fulfillment.provider_id ?? null
 
@@ -80,8 +97,22 @@ export default async function orderShippedHandler({
           "id",
           "email",
           "currency_code",
-          "items.*",
-          "shipping_methods.*",
+          "total",
+          "subtotal", 
+          "item_total",
+          "shipping_total",
+          "tax_total",
+          "items.id",
+          "items.title", 
+          "items.product_title",
+          "items.variant_title",
+          "items.thumbnail",
+          "items.quantity",
+          "items.unit_price",
+          "items.total",
+          "shipping_methods.id",
+          "shipping_methods.name",
+          "shipping_methods.total",
         ],
       },
     })

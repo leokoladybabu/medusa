@@ -49,6 +49,28 @@ export default function OrderShippedEmailComponent({
       ? `#${order.display_id}`
       : order.display_id || order.id
 
+  const trackingBlock = (
+    <>
+     {tracking_number ? (
+        <Text className="text-gray-700" style={{ margin: "0 0 12px" }}>
+          Tracking number: <strong>{tracking_number}</strong>
+        </Text>
+      ) : null}
+
+      {tracking_number ? (
+        <Text className="text-gray-700" style={{ margin: "0 0 16px" }}>
+          Track your shipment here:{" "}
+          <Link
+            href={`https://tools.usps.com/go/TrackConfirmAction?qtc_tLabels1=${tracking_number}`}
+            style={{ color: "#0070f3", textDecoration: "underline" }}
+          >
+            {tracking_number}
+          </Link>
+        </Text>
+      ) : null}
+    </>
+  )
+
   return (
     <Tailwind>
       <Html className="font-sans bg-gray-100">
@@ -67,6 +89,8 @@ export default function OrderShippedEmailComponent({
             <Heading className="text-2xl font-bold text-center text-gray-800">
               Good news — your order is on its way!
             </Heading>
+            {/* Tracking */}
+          <Container className="px-6">{trackingBlock}</Container>
             <Text className="text-center text-gray-600 mt-2">
               You can check order details under{" "}
               <Link href={accountUrl} style={{ color: "#0070f3", textDecoration: "underline" }}>

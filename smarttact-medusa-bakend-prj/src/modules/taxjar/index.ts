@@ -1,6 +1,3 @@
-import { Modules, ModuleProvider } from "@medusajs/framework/utils";
-import TaxJarProvider from "./service";
-
-export default ModuleProvider(Modules.TAX, {
-  services: [TaxJarProvider],
-});
+// TaxJar provider intentionally not exported/registered.
+// Keeping file to avoid missing imports during local exploration.
+export default undefined as any

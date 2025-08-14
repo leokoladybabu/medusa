@@ -103,7 +103,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
           name: "European Warehouse",
           address: {
             city: "Copenhagen",
-            country_code: "DK",
+            country_code: "dk",
             address_1: "",
           },
         },

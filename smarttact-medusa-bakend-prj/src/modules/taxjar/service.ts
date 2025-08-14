@@ -22,6 +22,7 @@ type TaxJarClientOptions = {
   };
 };
 
+// Note: TaxJar disabled. Provider kept for reference but not registered.
 export default class TaxJarProvider implements ITaxProvider {
   static identifier = "taxjar";
 

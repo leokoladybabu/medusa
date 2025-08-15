@@ -119,6 +119,74 @@ export default async function seedDemoData({ container }: ExecArgs) {
   });
   logger.info("Finished seeding tax regions.");
 
+  // Create default country-level tax rates so carts show taxes in totals
+  try {
+    logger.info("Seeding default tax rates for tax regions...");
+    const taxModuleService = container.resolve(Modules.TAX);
+
+    // Fetch all tax regions for our countries
+    const taxRegions = await taxModuleService.listTaxRegions({
+      country_code: countries,
+    });
+
+    // Basic sample defaults; adjust as needed
+    const defaultRates: Record<string, number> = {
+      gb: 20,
+      de: 19,
+      dk: 25,
+      se: 25,
+      fr: 20,
+      es: 21,
+      it: 22,
+      us: 8.5, // simplified US default for demo purposes
+    };
+
+    // Build inputs only for regions without any tax rates yet
+    const createRatesInput: any[] = [];
+    for (const tr of taxRegions) {
+      const rate = defaultRates[tr.country_code as keyof typeof defaultRates];
+      if (rate == null) {
+        continue;
+      }
+      const existing = await taxModuleService.listTaxRates({
+        tax_region_id: tr.id,
+      });
+      if (existing.length) {
+        continue;
+      }
+      createRatesInput.push({
+        tax_region_id: tr.id,
+        name: "Default",
+        rate,
+        is_default: true,
+      });
+    }
+
+    if (createRatesInput.length) {
+      const { createTaxRatesWorkflow } = await import(
+        "@medusajs/medusa/core-flows"
+      );
+      const { result: createdRates } = await createTaxRatesWorkflow(container).run({
+        input: createRatesInput,
+      });
+
+      logger.info(
+        `Seed: Default tax rates created: ${JSON.stringify(
+          createdRates.map((r) => ({
+            id: r.id,
+            name: r.name,
+            rate: r.rate,
+            tax_region_id: r.tax_region_id,
+          }))
+        )}`
+      );
+    } else {
+      logger.warn("Seed: No tax regions found to assign default tax rates.");
+    }
+  } catch (e) {
+    logger.error(`Seed: Failed to seed default tax rates: ${e}`);
+  }
+
   logger.info("Seeding stock location data...");
   const { result: stockLocationResult } = await createStockLocationsWorkflow(
     container

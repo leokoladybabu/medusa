@@ -129,7 +129,7 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
     // Stripe Automatic Tax
     if (this.options_?.automaticTax) {
       // Do not override if caller explicitly passed automatic_tax
-      res.automatic_tax =
+      ;(res as any).automatic_tax =
         (extra?.automatic_tax as { enabled: boolean } | undefined) ??
         ({ enabled: true } as any)
     }
@@ -289,9 +289,10 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
       amount: getSmallestUnit(amount, currency_code),
       currency: currency_code,
       metadata: { session_id: data?.session_id as string },
-  // Enable Stripe Automatic Tax when configured at provider level
-  automatic_tax: this.options_.automaticTax ? { enabled: true } : undefined,
       ...additionalParameters,
+      ...(this.options_.automaticTax
+        ? ({ automatic_tax: { enabled: true } } as any)
+        : {}),
     }
 
     intentRequest.customer = context?.account_holder?.data?.id as

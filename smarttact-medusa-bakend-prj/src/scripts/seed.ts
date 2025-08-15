@@ -27,8 +27,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT);
   const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
   const storeModuleService = container.resolve(Modules.STORE);
+  const stripeEnabled = Boolean(process.env.STRIPE_API_KEY && process.env.STRIPE_WEBHOOK_SECRET);
+  logger.info(`Seed: Stripe configured=${stripeEnabled}, automatic taxes at region level will apply`);
 
-  const countries = ["gb", "de", "dk", "se", "fr", "es", "it"];
+  const countries = ["gb", "de", "dk", "se", "fr", "es", "it", "us"];
 
   logger.info("Seeding store data...");
   const [store] = await storeModuleService.listStores();
@@ -77,12 +79,36 @@ export default async function seedDemoData({ container }: ExecArgs) {
           name: "Europe",
           currency_code: "eur",
           countries,
-          payment_providers: ["pp_system_default"],
+          automatic_taxes: true,
+          payment_providers: stripeEnabled
+            ? ["pp_system_default", "stripe"]
+            : ["pp_system_default"],
+        },
+        {
+          name: "United States",
+          currency_code: "usd",
+          countries: ["us"],
+          automatic_taxes: true,
+          payment_providers: stripeEnabled
+            ? ["pp_system_default", "stripe"]
+            : ["pp_system_default"],
         },
       ],
     },
   });
-  const region = regionResult[0];
+  const region = regionResult.find((r) => r.currency_code === "eur")!;
+  const usRegion = regionResult.find((r) => r.currency_code === "usd")!;
+  logger.info(
+    `Seed: Regions created: ${JSON.stringify(
+      regionResult.map((r) => ({
+        id: r.id,
+        name: r.name,
+        currency: r.currency_code,
+        automatic_taxes: r.automatic_taxes,
+        providers: (r as any).payment_providers?.map((p: any) => p.id ?? p),
+      }))
+    )}`
+  );
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
@@ -100,10 +126,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       locations: [
         {
-          name: "European Warehouse",
+      name: "Main Warehouse",
           address: {
-            city: "Copenhagen",
-            country_code: "dk",
+        city: "Copenhagen",
+        country_code: "dk",
             address_1: "",
           },
         },
@@ -143,7 +169,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
   }
 
   const fulfillmentSet = await fulfillmentModuleService.createFulfillmentSets({
-    name: "European Warehouse delivery",
+    name: "Main Warehouse delivery",
     type: "shipping",
     service_zones: [
       {
@@ -175,6 +201,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
           },
           {
             country_code: "it",
+            type: "country",
+          },
+          {
+            country_code: "us",
             type: "country",
           },
         ],
@@ -217,6 +247,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
             region_id: region.id,
             amount: 10,
           },
+          {
+            region_id: usRegion.id,
+            amount: 10,
+          },
         ],
         rules: [
           {
@@ -253,6 +287,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
           },
           {
             region_id: region.id,
+            amount: 10,
+          },
+          {
+            region_id: usRegion.id,
             amount: 10,
           },
         ],

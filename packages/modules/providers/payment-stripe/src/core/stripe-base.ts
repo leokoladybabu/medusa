@@ -80,6 +80,18 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
     this.options_ = options
 
     this.stripe_ = new Stripe(options.apiKey)
+
+    // Debug (safe): summarize selected options (no secrets)
+    try {
+      this.safeLog("[StripeBase] provider options:", {
+        has_api_key: Boolean(options.apiKey),
+        has_webhook_secret: Boolean(options.webhookSecret),
+        capture: Boolean(options.capture),
+        automaticPaymentMethods: Boolean(options.automaticPaymentMethods),
+        automaticTax: Boolean((options as any).automaticTax),
+        has_paymentDescription: Boolean(options.paymentDescription),
+      })
+    } catch {}
   }
 
   abstract get paymentIntentOptions(): PaymentIntentOptions
@@ -114,6 +126,14 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
 
     res.off_session = extra?.off_session as boolean | undefined
 
+    // Stripe Automatic Tax
+    if (this.options_?.automaticTax) {
+      // Do not override if caller explicitly passed automatic_tax
+      res.automatic_tax =
+        (extra?.automatic_tax as { enabled: boolean } | undefined) ??
+        ({ enabled: true } as any)
+    }
+
     res.confirm = extra?.confirm as boolean | undefined
 
     res.payment_method = extra?.payment_method as string | undefined
@@ -127,6 +147,7 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
           setup_future_usage: res.setup_future_usage,
           payment_method_types: res.payment_method_types,
           automatic_payment_methods: Boolean(res.automatic_payment_methods),
+          automatic_tax: (res as any)?.automatic_tax?.enabled ?? false,
           has_return_url: Boolean(res.return_url),
         }
         this.safeLog("[StripeBase] normalizePaymentIntentParameters:", dbg)
@@ -268,6 +289,8 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
       amount: getSmallestUnit(amount, currency_code),
       currency: currency_code,
       metadata: { session_id: data?.session_id as string },
+  // Enable Stripe Automatic Tax when configured at provider level
+  automatic_tax: this.options_.automaticTax ? { enabled: true } : undefined,
       ...additionalParameters,
     }
 
@@ -285,6 +308,7 @@ abstract class StripeBase extends AbstractPaymentProvider<StripeOptions> {
       automatic_payment_methods: Boolean(
         (intentRequest as any)?.automatic_payment_methods
       ),
+  automatic_tax: Boolean((intentRequest as any)?.automatic_tax),
     })
 
     const sessionData = await this.executeWithRetry<Stripe.PaymentIntent>(

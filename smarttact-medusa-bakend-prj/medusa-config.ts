@@ -55,11 +55,12 @@ const dynamicModules = {
 
 const stripeApiKey = process.env.STRIPE_API_KEY;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeAutomaticTax = (process.env.STRIPE_AUTOMATIC_TAX || "false").toLowerCase() === "true";
 
 const isStripeConfigured = Boolean(stripeApiKey) && Boolean(stripeWebhookSecret);
 
 if (isStripeConfigured) {
-  console.log('Stripe API key and webhook secret found. Enabling payment module');
+  console.log('[Config] Stripe detected, enabling payment module. automaticTax=%s', stripeAutomaticTax);
   dynamicModules[Modules.PAYMENT] = {
     resolve: '@medusajs/medusa/payment',
     options: {
@@ -71,6 +72,8 @@ if (isStripeConfigured) {
             apiKey: stripeApiKey,
             webhookSecret: stripeWebhookSecret,
             capture: true,
+            // Enable Stripe Automatic Tax when configured
+            automaticTax: stripeAutomaticTax,
           },
         },
       ],

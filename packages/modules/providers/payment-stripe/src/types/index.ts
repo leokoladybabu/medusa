@@ -16,6 +16,11 @@ export interface StripeOptions {
    */
   automaticPaymentMethods?: boolean
   /**
+   * Enable Stripe Automatic Tax on PaymentIntents.
+   * Note: Your Stripe account must have Stripe Tax enabled.
+   */
+  automaticTax?: boolean
+  /**
    * Set a default description on the intent if the context does not provide one
    */
   paymentDescription?: string

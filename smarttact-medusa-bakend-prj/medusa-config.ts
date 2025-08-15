@@ -2,24 +2,7 @@ import { loadEnv, defineConfig, Modules, ContainerRegistrationKeys } from '@medu
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
-const dynamicModules = {
-  [Modules.TAX]: {
-     resolve: "@medusajs/medusa/tax",
-      dependencies: ["remoteQuery"],
-      options: {
-        providers: [
-          {
-            resolve: "./src/modules/taxjar",
-            id: "tax-jar-provider",
-            options: {
-              apiKey: process.env.TAXJAR_API_KEY,
-              defaultTaxcode: process.env.TAXJAR_DEFAULT_TAXCODE,
-            },
-          },
-        ],
-      },
-  },
-  
+const dynamicModules = {  
   [Modules.NOTIFICATION]:  {
       resolve: "@medusajs/medusa/notification",
       options: {

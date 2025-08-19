@@ -3,13 +3,13 @@ import { loadEnv, defineConfig, Modules, ContainerRegistrationKeys } from '@medu
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
 const dynamicModules = {
-  tax: {
+  [Modules.TAX]: {
      resolve: "@medusajs/medusa/tax",
      dependencies: ["remoteQuery"],
       options: {
         providers: [
           {
-            resolve: "./src/modules/stripe-tax",
+            resolve: "./src/modules/stripetax",
             id: "stripetax",
             options: {
               apiKey: process.env.STRIPE_API_KEY,
